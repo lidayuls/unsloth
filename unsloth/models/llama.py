@@ -1536,14 +1536,29 @@ pass
 
 
 
-# ==== 用户新增的 _wrap_fast_forward 函数 ====
+# # ==== 用户新增的 _wrap_fast_forward 函数 ====
+# def _wrap_fast_forward(self, my_forward):
+#     # Wraps forward with bfloat16 / float16
+#     dtype = _get_dtype(self.config.torch_dtype)
+#     @torch.inference_mode
+#     def _fast_forward(*args, **kwargs):
+#         # Autocasted
+#         with torch.autocast(device_type = "cuda", dtype=dtype):
+#             output = my_forward(*args, **kwargs)
+#         return output
+#     return _fast_forward
+# # ============ 修改结束 ============
+
+
+# ==== 用户修改后的 _wrap_fast_forward 函数 ====
 def _wrap_fast_forward(self, my_forward):
-    # Wraps forward with bfloat16 / float16
-    dtype = _get_dtype(self.config.torch_dtype)
-    @torch.inference_mode
+    # Wraps forward with mixed precision
     def _fast_forward(*args, **kwargs):
-        # Autocasted
-        with torch.autocast(device_type = "cuda", dtype=dtype):
+        # 获取模型精度配置
+        dtype = _get_dtype(self.config.torch_dtype)
+        
+        # 统一推理模式上下文管理
+        with torch.inference_mode(), torch.autocast(device_type="cuda", dtype=dtype):
             output = my_forward(*args, **kwargs)
         return output
     return _fast_forward
