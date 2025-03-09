@@ -2681,7 +2681,7 @@ class FastLlamaModel:
 
         
         # ==== 新增 forward 方法包装 ====
-        model.my_forward = _wrap_fast_forward((model, model.forward)
+        model.my_forward = _wrap_fast_forward(model, model.forward)
         # ============ 修改结束 ============
 
         
