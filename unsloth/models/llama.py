@@ -1534,6 +1534,26 @@ class LongRopeRotaryEmbedding(torch.nn.Module):
 pass
 
 
+
+
+# ==== 用户新增的 _wrap_fast_forward 函数 ====
+def _wrap_fast_forward(my_forward, device_type, dtype, model):
+    # Wraps forward with bfloat16 / float16
+    @torch.inference_mode
+    def _fast_forward(*args, ​**kwargs):
+        # Autocasted
+        with torch.autocast(device_type=device_type, dtype=dtype):
+            output = my_forward(*args, ​**kwargs)
+        return output
+    return _fast_forward
+# ============ 修改结束 ============
+
+
+
+
+
+
+
 def unsloth_fast_generate(
     self,
     *args,
@@ -1586,24 +1606,6 @@ def unsloth_fast_generate(
     FastLlamaModel.for_training(self)
 
     return output
-pass
-
-
-
-
-
-# 自己增加修改的，通过增加forward函数（原代码中没有），将forward函数缩小到float16，防止输出向量时内存异常占用和溢出
-def _wrap_fast_forward(my_forward, device_type, dtype, model):
-    # Wraps forward with bfloat16 / float16
-    @torch.inference_mode
-    def _fast_forward(*args, **kwargs):
-        # Autocasted
-        with torch.autocast(device_type = device_type, dtype = dtype):
-            output = my_forward(*args, **kwargs)
-        pass
-        return output
-    pass
-    return _fast_forward
 pass
 
 
@@ -2662,10 +2664,29 @@ class FastLlamaModel:
         _for_inference(m)
 
         
-        # 自己增加修改的，通过增加forward函数（原代码中没有），将forward函数缩小到float16，防止输出向量时内存异常占用和溢出
-        model.my_forward = _wrap_fast_forward(model.forward, device_type, dtype, model)
+        # ==== 新增获取 dtype 和 device_type 的逻辑 ====
+        # 获取模型参数类型和设备类型
+        internal_model = model
+        while not hasattr(internal_model, "lm_head"):
+            internal_model = internal_model.model
+        lm_head = internal_model.lm_head.weight
+        device_type = lm_head.device.type
+        dtype = model.config.torch_dtype
+        
+        if isinstance(dtype, str):
+            dtype = torch.float16 if dtype == "float16" else torch.bfloat16
+        # ============ 修改结束 ============
+
+        # ==== 新增 forward 方法包装 ====
+        # 包装原始 forward 方法
+        if not hasattr(model, "my_forward"):
+            original_forward = model.forward
+            model.my_forward = _wrap_fast_forward(original_forward, device_type, dtype, model)
+            model._original_forward = original_forward  # 保留原始方法引用
+        # ============ 修改结束 ============
 
 
+        
         
         # Also disable training for embeddings for NEFTune
         if hasattr(model, "get_input_embeddings"):
