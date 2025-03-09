@@ -1589,6 +1589,27 @@ def unsloth_fast_generate(
 pass
 
 
+
+
+
+# 自己增加修改的，通过增加forward函数（原代码中没有），将forward函数缩小到float16，防止输出向量时内存异常占用和溢出
+def _wrap_fast_forward(my_forward, device_type, dtype, model):
+    # Wraps forward with bfloat16 / float16
+    @torch.inference_mode
+    def _fast_forward(*args, **kwargs):
+        # Autocasted
+        with torch.autocast(device_type = device_type, dtype = dtype):
+            output = my_forward(*args, **kwargs)
+        pass
+        return output
+    pass
+    return _fast_forward
+pass
+
+
+
+
+
 class FastLlamaModel:
 
     @staticmethod
@@ -2640,6 +2661,12 @@ class FastLlamaModel:
             m = m.model
         _for_inference(m)
 
+        
+        # 自己增加修改的，通过增加forward函数（原代码中没有），将forward函数缩小到float16，防止输出向量时内存异常占用和溢出
+        model.my_forward = _wrap_fast_forward(model.forward, device_type, dtype, model)
+
+
+        
         # Also disable training for embeddings for NEFTune
         if hasattr(model, "get_input_embeddings"):
             embeddings = model.get_input_embeddings()
