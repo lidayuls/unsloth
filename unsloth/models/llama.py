@@ -2681,13 +2681,8 @@ class FastLlamaModel:
 
         
         # ==== 新增 forward 方法包装 ====
-        # 包装原始 forward 方法
-        if not hasattr(model, "my_forward"):
-            original_forward = model.forward
-            model.my_forward = _wrap_fast_forward(original_forward)
-            model._original_forward = original_forward  # 保留原始方法引用
+        model.my_forward = _wrap_fast_forward((model, model.forward)
         # ============ 修改结束 ============
-
 
         
         
