@@ -1752,6 +1752,8 @@ pass
 
 
 
+
+
 # # ==== 用户新增的 _wrap_fast_forward 函数 ====
 # def _wrap_fast_forward(self, my_forward):
 #     # Wraps forward with bfloat16 / float16
